@@ -1,0 +1,1077 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng tuần hoàn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        *{font-family: Arial, Helvetica, sans-serif}
+
+        /* CSS for the periodic table */
+        .periodic-table {
+            display: grid;
+            /* Add column for group labels */
+            grid-template-columns: 30px repeat(18, 1fr); 
+            /* Add row for period labels */
+            grid-template-rows: 30px repeat(9, 1fr); 
+            gap: 4px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Styling for group and period labels */
+        .group-label, .period-label {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 12px;
+            font-family: 'Times New Roman', Times, serif;
+            color: #555;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .group-label {
+            height: fit-content;
+            padding-top: 4px; padding-bottom: 4px;
+            align-self: end;
+        }
+
+        .period-label {
+            width: 28px;
+            justify-self: end;
+        }
+        
+        /* Styling for each element */
+        .element {
+            position: relative;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 4px;
+            box-sizing: border-box;
+        }
+        
+        .element:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        
+        .element-number {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            font-size: 10px;
+        }
+        
+        .element-symbol {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 4px 0;
+        }
+        
+        .element-name {
+            font-size: 8px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        
+        .element-mass {
+            font-size: 10px;
+        }
+        
+        /* Styling for the modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1100px;
+            height: 80%;
+            position: relative;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+            gap: 20px;
+            min-height: 0;
+            margin-top: 16px;
+            overflow-x: scroll;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .modal-body::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: red;
+        }
+        
+        .settings-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .model-container {
+            width: 100%;
+            height: 100%;
+            min-height: 360px;
+            position: relative;
+            touch-action: none;
+            cursor: grab;
+            overflow: hidden;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            background: #000;
+        }
+
+        .model-container:active {
+            cursor: grabbing;
+        }
+        
+        /* Styling for the settings modal */
+        .settings-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 10;
+            display: none;
+        }
+        
+        .settings-modal.active {
+            display: block;
+        }
+        
+        .settings-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        /* Styling for the switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* Styling for the info panel */
+        .info-panel, .note-panel {
+            padding: 18px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            overflow-y: auto;
+            min-height: fit-content;            
+        }
+
+        .info-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (min-width: 750px) and (max-width: 900px) {
+            .info-container {
+                flex-direction: row;
+            }
+            .info-panel {
+                flex: 1;
+                min-width: 380px;
+            }
+            .note-panel {
+                height: 100%;
+                min-width: 220px; max-width: 220px; width: 220px;
+            }
+        }
+
+        .info-panel h3, .note-panel h3{
+            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .info-line, .note-line {
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+            line-height: 1.5;
+        }
+
+        .note-line {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .info-line:last-child, .note-line:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 700;
+            color: #334155;
+            display: inline-block;
+            min-width: 175px;
+        }
+
+        .info-value, .note-lable {
+            color: #0f172a;
+        }
+
+        .info-value.nhom {
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        @media (max-width: 900px) {
+            .modal-content {
+                height: 90%;
+            }
+
+            .modal-content h2 {
+                margin-top: 20px;
+            }
+
+            .modal-body {
+                grid-template-columns: 1fr;
+                padding-bottom: 10px;
+            }
+
+            .model-container {
+                min-height: 300px;
+            }
+        }
+        
+        /* Element categories colors */
+        .alkali-metal { background-color: #FF9E9E; }
+        .alkaline-earth { background-color: #FFDEAD; }
+        .transition-metal { background-color: #FFC0CB; }
+        .post-transition { background-color: #CCCCCC; }
+        .metalloid { background-color: #99CC99; }
+        .nonmetal { background-color: #A0FFA0; }
+        .halogen { background-color: #FFFF99; }
+        .noble-gas { background-color: #C0FFFF; }
+        .lanthanide, .lanthanide_ { background-color: #FFBFFF; }
+        .actinide, .actinide_ { background-color: #FF99CC; }
+        .unknown { background-color: #E0E0E0; }
+    </style>
+</head>
+<body class="bg-gray-0 p-4">
+    <div class="container mx-auto">
+        
+        
+        <div class="periodic-table" id="periodicTable">
+            <!-- Empty cell in the top-left corner for alignment -->
+            <div style="grid-column: 1; grid-row: 1;"></div> 
+            <div style="grid-column: 4 / span 10; grid-row: 3; align-self: center;">
+                <h1 class="text-3xl font-bold text-center mb-6">Bảng Hoàn Hoá Học Tương Tác</h1>
+            </div> 
+            <!-- Group labels -->
+            <div class="group-label" style="grid-column: 2; grid-row: 1;">IA</div>
+            <div class="group-label" style="grid-column: 3; grid-row: 2;">IIA</div>
+            <div class="group-label" style="grid-column: 4; grid-row: 4;">IIIB</div>
+            <div class="group-label" style="grid-column: 5; grid-row: 4;">IVB</div>
+            <div class="group-label" style="grid-column: 6; grid-row: 4;">VB</div>
+            <div class="group-label" style="grid-column: 7; grid-row: 4;">VIB</div>
+            <div class="group-label" style="grid-column: 8; grid-row: 4;">VIIB</div>
+            <div class="group-label" style="grid-column: 9 / span 3; grid-row: 4;">VIIIB</div>
+            <div class="group-label" style="grid-column: 12; grid-row: 4;">IB</div>
+            <div class="group-label" style="grid-column: 13; grid-row: 4;">IIB</div>
+            <div class="group-label" style="grid-column: 14; grid-row: 2;">IIIA</div>
+            <div class="group-label" style="grid-column: 15; grid-row: 2;">IVA</div>
+            <div class="group-label" style="grid-column: 16; grid-row: 2;">VA</div>
+            <div class="group-label" style="grid-column: 17; grid-row: 2;">VIA</div>
+            <div class="group-label" style="grid-column: 18; grid-row: 2;">VIIA</div>
+            <div class="group-label" style="grid-column: 19; grid-row: 1;">VIIIA</div>
+
+            <!-- Period labels will be added by JavaScript for dynamically positioned elements -->
+            <div class="period-label" style="grid-row: 2;">1</div>
+            <div class="period-label" style="grid-row: 3;">2</div>
+            <div class="period-label" style="grid-row: 4;">3</div>
+            <div class="period-label" style="grid-row: 5;">4</div>
+            <div class="period-label" style="grid-row: 6;">5</div>
+            <div class="period-label" style="grid-row: 7;">6</div>
+            <div class="period-label" style="grid-row: 8;">7</div>
+            <div class="period-label" style="grid-row: 9; grid-column: 3;">*</div>
+            <div class="period-label" style="grid-row: 10; grid-column: 3;">**</div>
+
+            <!-- Elements will be inserted here by JavaScript -->
+        </div>
+    </div>
+    
+    <!-- Element Modal -->
+    <div class="modal" id="elementModal">
+        <div class="modal-content">
+            <button class="close-btn" id="closeModal">✕</button>
+            <button class="settings-btn" id="settingsBtn">⚙️Cài Đặt</button>
+            <h2 class="text-2xl font-bold text-center" id="modalTitle">Nguyên tố</h2>
+            <div class="modal-body">
+                <div class="model-container" id="modelContainer"></div>
+                <div class="info-container">
+                    <div class="note-panel mb">
+                        <h3 class="font-bold mb-2 text-center">Chú thích</h3>
+                        <div class="note-line"><div class="w-5 h-5 mr-3 rounded-full bg-[#ff0000] border border-[#dbe4f0]"></div><div class="note-lable">Protron</div></div>
+                        <div class="note-line"><div class="w-5 h-5 mr-3 rounded-full bg-[#0000ff] border border-[#dbe4f0]"></div><div class="note-lable">Neutron</div></div>
+                        <div class="note-line"><div class="w-5 h-5 mr-3 rounded-full bg-[#64748b] border border-[#dbe4f0]"></div><div class="note-lable">Elecron</div></div>
+                    </div>
+                    <div class="info-panel" id="infoPanel">
+                        <h3 class="font-bold mb-2 text-center">Thông tin</h3>
+                        <div id="elementInfo">Chọn một nguyên tố để xem thông tin.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Modal -->
+            <div class="settings-modal" id="settingsModal">
+                <button class="settings-close" id="closeSettings">✕</button>
+                <h3 class="text-xl font-bold mb-4">Cài đặt mô hình 3D</h3>
+                
+                <div class="flex items-center mb-4">
+                    <label class="mr-2">Proton:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="protonToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="flex items-center mb-4">
+                    <label class="mr-2">Neutron:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="neutronToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="flex items-center mb-4">
+                    <label class="mr-2">Electron:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="electronToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="flex items-center mb-4">
+                    <label class="mr-2">Chuyển động Electron:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="electronMoveToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="flex items-center mb-4">
+                    <label class="mr-2">Hiện quỹ đạo electron:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="electronOrbitToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Periodic Table Data
+        const elements = [
+            { number: 1, symbol: "H", name: "Hydrogen", mass: 1.008, category: "nonmetal", group: 1, period: 1 },
+            { number: 2, symbol: "He", name: "Helium", mass: 4.0026, category: "noble-gas", group: 18, period: 1 },
+            { number: 3, symbol: "Li", name: "Lithium", mass: 6.94, category: "alkali-metal", group: 1, period: 2 },
+            { number: 4, symbol: "Be", name: "Beryllium", mass: 9.0122, category: "alkaline-earth", group: 2, period: 2 },
+            { number: 5, symbol: "B", name: "Boron", mass: 10.81, category: "metalloid", group: 13, period: 2 },
+            { number: 6, symbol: "C", name: "Carbon", mass: 12.011, category: "nonmetal", group: 14, period: 2 },
+            { number: 7, symbol: "N", name: "Nitrogen", mass: 14.007, category: "nonmetal", group: 15, period: 2 },
+            { number: 8, symbol: "O", name: "Oxygen", mass: 15.999, category: "nonmetal", group: 16, period: 2 },
+            { number: 9, symbol: "F", name: "Fluorine", mass: 18.998, category: "halogen", group: 17, period: 2 },
+            { number: 10, symbol: "Ne", name: "Neon", mass: 20.180, category: "noble-gas", group: 18, period: 2 },
+            { number: 11, symbol: "Na", name: "Sodium", mass: 22.990, category: "alkali-metal", group: 1, period: 3 },
+            { number: 12, symbol: "Mg", name: "Magnesium", mass: 24.305, category: "alkaline-earth", group: 2, period: 3 },
+            { number: 13, symbol: "Al", name: "Aluminum", mass: 26.982, category: "post-transition", group: 13, period: 3 },
+            { number: 14, symbol: "Si", name: "Silicon", mass: 28.085, category: "metalloid", group: 14, period: 3 },
+            { number: 15, symbol: "P", name: "Phosphorus", mass: 30.974, category: "nonmetal", group: 15, period: 3 },
+            { number: 16, symbol: "S", name: "Sulfur", mass: 32.06, category: "nonmetal", group: 16, period: 3 },
+            { number: 17, symbol: "Cl", name: "Chlorine", mass: 35.45, category: "halogen", group: 17, period: 3 },
+            { number: 18, symbol: "Ar", name: "Argon", mass: 39.948, category: "noble-gas", group: 18, period: 3 },
+            { number: 19, symbol: "K", name: "Potassium", mass: 39.098, category: "alkali-metal", group: 1, period: 4 },
+            { number: 20, symbol: "Ca", name: "Calcium", mass: 40.078, category: "alkaline-earth", group: 2, period: 4 },
+            { number: 21, symbol: "Sc", name: "Scandium", mass: 44.956, category: "transition-metal", group: 3, period: 4 },
+            { number: 22, symbol: "Ti", name: "Titanium", mass: 47.867, category: "transition-metal", group: 4, period: 4 },
+            { number: 23, symbol: "V", name: "Vanadium", mass: 50.942, category: "transition-metal", group: 5, period: 4 },
+            { number: 24, symbol: "Cr", name: "Chromium", mass: 51.996, category: "transition-metal", group: 6, period: 4 },
+            { number: 25, symbol: "Mn", name: "Manganese", mass: 54.938, category: "transition-metal", group: 7, period: 4 },
+            { number: 26, symbol: "Fe", name: "Iron", mass: 55.845, category: "transition-metal", group: 8, period: 4 },
+            { number: 27, symbol: "Co", name: "Cobalt", mass: 58.933, category: "transition-metal", group: 9, period: 4 },
+            { number: 28, symbol: "Ni", name: "Nickel", mass: 58.693, category: "transition-metal", group: 10, period: 4 },
+            { number: 29, symbol: "Cu", name: "Copper", mass: 63.546, category: "transition-metal", group: 11, period: 4 },
+            { number: 30, symbol: "Zn", name: "Zinc", mass: 65.38, category: "transition-metal", group: 12, period: 4 },
+            { number: 31, symbol: "Ga", name: "Gallium", mass: 69.723, category: "post-transition", group: 13, period: 4 },
+            { number: 32, symbol: "Ge", name: "Germanium", mass: 72.630, category: "metalloid", group: 14, period: 4 },
+            { number: 33, symbol: "As", name: "Arsenic", mass: 74.922, category: "metalloid", group: 15, period: 4 },
+            { number: 34, symbol: "Se", name: "Selenium", mass: 78.971, category: "nonmetal", group: 16, period: 4 },
+            { number: 35, symbol: "Br", name: "Bromine", mass: 79.904, category: "halogen", group: 17, period: 4 },
+            { number: 36, symbol: "Kr", name: "Krypton", mass: 83.798, category: "noble-gas", group: 18, period: 4 },
+            { number: 37, symbol: "Rb", name: "Rubidium", mass: 85.468, category: "alkali-metal", group: 1, period: 5 },
+            { number: 38, symbol: "Sr", name: "Strontium", mass: 87.62, category: "alkaline-earth", group: 2, period: 5 },
+            { number: 39, symbol: "Y", name: "Yttrium", mass: 88.906, category: "transition-metal", group: 3, period: 5 },
+            { number: 40, symbol: "Zr", name: "Zirconium", mass: 91.224, category: "transition-metal", group: 4, period: 5 },
+            { number: 41, symbol: "Nb", name: "Niobium", mass: 92.906, category: "transition-metal", group: 5, period: 5 },
+            { number: 42, symbol: "Mo", name: "Molybdenum", mass: 95.95, category: "transition-metal", group: 6, period: 5 },
+            { number: 43, symbol: "Tc", name: "Technetium", mass: 98, category: "transition-metal", group: 7, period: 5 },
+            { number: 44, symbol: "Ru", name: "Ruthenium", mass: 101.07, category: "transition-metal", group: 8, period: 5 },
+            { number: 45, symbol: "Rh", name: "Rhodium", mass: 102.91, category: "transition-metal", group: 9, period: 5 },
+            { number: 46, symbol: "Pd", name: "Palladium", mass: 106.42, category: "transition-metal", group: 10, period: 5 },
+            { number: 47, symbol: "Ag", name: "Silver", mass: 107.87, category: "transition-metal", group: 11, period: 5 },
+            { number: 48, symbol: "Cd", name: "Cadmium", mass: 112.41, category: "transition-metal", group: 12, period: 5 },
+            { number: 49, symbol: "In", name: "Indium", mass: 114.82, category: "post-transition", group: 13, period: 5 },
+            { number: 50, symbol: "Sn", name: "Tin", mass: 118.71, category: "post-transition", group: 14, period: 5 },
+            { number: 51, symbol: "Sb", name: "Antimony", mass: 121.76, category: "metalloid", group: 15, period: 5 },
+            { number: 52, symbol: "Te", name: "Tellurium", mass: 127.60, category: "metalloid", group: 16, period: 5 },
+            { number: 53, symbol: "I", name: "Iodine", mass: 126.90, category: "halogen", group: 17, period: 5 },
+            { number: 54, symbol: "Xe", name: "Xenon", mass: 131.29, category: "noble-gas", group: 18, period: 5 },
+            { number: 55, symbol: "Cs", name: "Cesium", mass: 132.91, category: "alkali-metal", group: 1, period: 6 },
+            { number: 56, symbol: "Ba", name: "Barium", mass: 137.33, category: "alkaline-earth", group: 2, period: 6 },
+            { number: "57 - 71", symbol: "*", name: "La - Lu", mass: "", category: "lanthanide_", group: 3, period: 6 },
+            { number: 57, symbol: "La", name: "Lanthanum", mass: 138.91, category: "lanthanide", group: 3, period: 6 },
+            { number: 58, symbol: "Ce", name: "Cerium", mass: 140.12, category: "lanthanide", group: null, period: 6 },
+            { number: 59, symbol: "Pr", name: "Praseodymium", mass: 140.91, category: "lanthanide", group: null, period: 6 },
+            { number: 60, symbol: "Nd", name: "Neodymium", mass: 144.24, category: "lanthanide", group: null, period: 6 },
+            { number: 61, symbol: "Pm", name: "Promethium", mass: 145, category: "lanthanide", group: null, period: 6 },
+            { number: 62, symbol: "Sm", name: "Samarium", mass: 150.36, category: "lanthanide", group: null, period: 6 },
+            { number: 63, symbol: "Eu", name: "Europium", mass: 151.96, category: "lanthanide", group: null, period: 6 },
+            { number: 64, symbol: "Gd", name: "Gadolinium", mass: 157.25, category: "lanthanide", group: null, period: 6 },
+            { number: 65, symbol: "Tb", name: "Terbium", mass: 158.93, category: "lanthanide", group: null, period: 6 },
+            { number: 66, symbol: "Dy", name: "Dysprosium", mass: 162.50, category: "lanthanide", group: null, period: 6 },
+            { number: 67, symbol: "Ho", name: "Holmium", mass: 164.93, category: "lanthanide", group: null, period: 6 },
+            { number: 68, symbol: "Er", name: "Erbium", mass: 167.26, category: "lanthanide", group: null, period: 6 },
+            { number: 69, symbol: "Tm", name: "Thulium", mass: 168.93, category: "lanthanide", group: null, period: 6 },
+            { number: 70, symbol: "Yb", name: "Ytterbium", mass: 173.05, category: "lanthanide", group: null, period: 6 },
+            { number: 71, symbol: "Lu", name: "Lutetium", mass: 174.97, category: "lanthanide", group: 3, period: 6 },
+            { number: 72, symbol: "Hf", name: "Hafnium", mass: 178.49, category: "transition-metal", group: 4, period: 6 },
+            { number: 73, symbol: "Ta", name: "Tantalum", mass: 180.95, category: "transition-metal", group: 5, period: 6 },
+            { number: 74, symbol: "W", name: "Tungsten", mass: 183.84, category: "transition-metal", group: 6, period: 6 },
+            { number: 75, symbol: "Re", name: "Rhenium", mass: 186.21, category: "transition-metal", group: 7, period: 6 },
+            { number: 76, symbol: "Os", name: "Osmium", mass: 190.23, category: "transition-metal", group: 8, period: 6 },
+            { number: 77, symbol: "Ir", name: "Iridium", mass: 192.22, category: "transition-metal", group: 9, period: 6 },
+            { number: 78, symbol: "Pt", name: "Platinum", mass: 195.08, category: "transition-metal", group: 10, period: 6 },
+            { number: 79, symbol: "Au", name: "Gold", mass: 196.97, category: "transition-metal", group: 11, period: 6 },
+            { number: 80, symbol: "Hg", name: "Mercury", mass: 200.59, category: "transition-metal", group: 12, period: 6 },
+            { number: 81, symbol: "Tl", name: "Thallium", mass: 204.38, category: "post-transition", group: 13, period: 6 },
+            { number: 82, symbol: "Pb", name: "Lead", mass: 207.2, category: "post-transition", group: 14, period: 6 },
+            { number: 83, symbol: "Bi", name: "Bismuth", mass: 208.98, category: "post-transition", group: 15, period: 6 },
+            { number: 84, symbol: "Po", name: "Polonium", mass: 209, category: "post-transition", group: 16, period: 6 },
+            { number: 85, symbol: "At", name: "Astatine", mass: 210, category: "halogen", group: 17, period: 6 },
+            { number: 86, symbol: "Rn", name: "Radon", mass: 222, category: "noble-gas", group: 18, period: 6 },
+            { number: 87, symbol: "Fr", name: "Francium", mass: 223, category: "alkali-metal", group: 1, period: 7 },
+            { number: 88, symbol: "Ra", name: "Radium", mass: 226, category: "alkaline-earth", group: 2, period: 7 },
+            { number: "89 - 103", symbol: "**", name: "Ac - Lr", mass: "", category: "actinide_", group: 3, period: 7 },
+            { number: 89, symbol: "Ac", name: "Actinium", mass: 227, category: "actinide", group: 3, period: 7 },
+            { number: 90, symbol: "Th", name: "Thorium", mass: 232.04, category: "actinide", group: null, period: 7 },
+            { number: 91, symbol: "Pa", name: "Protactinium", mass: 231.04, category: "actinide", group: null, period: 7 },
+            { number: 92, symbol: "U", name: "Uranium", mass: 238.03, category: "actinide", group: null, period: 7 },
+            { number: 93, symbol: "Np", name: "Neptunium", mass: 237, category: "actinide", group: null, period: 7 },
+            { number: 94, symbol: "Pu", name: "Plutonium", mass: 244, category: "actinide", group: null, period: 7 },
+            { number: 95, symbol: "Am", name: "Americium", mass: 243, category: "actinide", group: null, period: 7 },
+            { number: 96, symbol: "Cm", name: "Curium", mass: 247, category: "actinide", group: null, period: 7 },
+            { number: 97, symbol: "Bk", name: "Berkelium", mass: 247, category: "actinide", group: null, period: 7 },
+            { number: 98, symbol: "Cf", name: "Californium", mass: 251, category: "actinide", group: null, period: 7 },
+            { number: 99, symbol: "Es", name: "Einsteinium", mass: 252, category: "actinide", group: null, period: 7 },
+            { number: 100, symbol: "Fm", name: "Fermium", mass: 257, category: "actinide", group: null, period: 7 },
+            { number: 101, symbol: "Md", name: "Mendelevium", mass: 258, category: "actinide", group: null, period: 7 },
+            { number: 102, symbol: "No", name: "Nobelium", mass: 259, category: "actinide", group: null, period: 7 },
+            { number: 103, symbol: "Lr", "name": "Lawrencium", "mass": 262, "category": "actinide", "group": 3, "period": 7 },
+            { number: 104, symbol: "Rf", name: "Rutherfordium", mass: 267, category: "transition-metal", group: 4, period: 7 },
+            { number: 105, symbol: "Db", name: "Dubnium", mass: 270, category: "transition-metal", group: 5, period: 7 },
+            { number: 106, symbol: "Sg", name: "Seaborgium", mass: 271, category: "transition-metal", group: 6, period: 7 },
+            { number: 107, symbol: "Bh", name: "Bohrium", mass: 270, category: "transition-metal", group: 7, period: 7 },
+            { number: 108, symbol: "Hs", name: "Hassium", mass: 277, category: "transition-metal", group: 8, period: 7 },
+            { number: 109, symbol: "Mt", name: "Meitnerium", mass: 276, category: "transition-metal", group: 9, period: 7 },
+            { number: 110, symbol: "Ds", name: "Darmstadtium", mass: 281, category: "transition-metal", group: 10, period: 7 },
+            { number: 111, symbol: "Rg", name: "Roentgenium", mass: 280, category: "transition-metal", group: 11, period: 7 },
+            { number: 112, symbol: "Cn", name: "Copernicium", mass: 285, category: "transition-metal", group: 12, period: 7 },
+            { number: 113, symbol: "Nh", name: "Nihonium", mass: 286, category: "post-transition", group: 13, period: 7 },
+            { number: 114, symbol: "Fl", name: "Flerovium", mass: 289, category: "post-transition", group: 14, period: 7 },
+            { number: 115, symbol: "Mc", name: "Moscovium", mass: 290, category: "post-transition", group: 15, period: 7 },
+            { number: 116, symbol: "Lv", name: "Livermorium", mass: 293, category: "post-transition", group: 16, period: 7 },
+            { number: 117, symbol: "Ts", name: "Tennessine", mass: 294, category: "halogen", group: 17, period: 7 },
+            { number: 118, symbol: "Og", name: "Oganesson", mass: 294, category: "noble-gas", group: 18, period: 7 }
+        ];
+
+        // Get reference to the periodic table container
+        const periodicTable = document.getElementById('periodicTable');
+        
+        // Create empty cells for the periodic table layout and populate elements
+        for (let i = 0; i < elements.length; i++) {
+            const element = elements[i];
+            const elementDiv = document.createElement('div');
+            elementDiv.className = `element ${element.category}`;
+            elementDiv.innerHTML = `
+                <span class="element-number">${element.number}</span>
+                <span class="element-symbol">${element.symbol}</span>
+                <span class="element-name">${element.name}</span>
+                <span class="element-mass">${element.mass}</span>
+            `;
+            
+            // Position the element based on group and period
+            let gridColumn = element.group + 1; // +1 because of the period label column
+            let gridRow = element.period + 1; // +1 because of the group label row
+            
+            // Handle Lanthanides and Actinides
+            if (element.category === 'lanthanide') {
+                gridRow = 8 + 1; // Row 8 in the layout, +1 for group labels
+                gridColumn = element.number - 57 + 3 + 1; // Starts at column 3, +1 for period labels
+            } else if (element.category === 'actinide') {
+                gridRow = 9 + 1; // Row 9 in the layout, +1 for group labels
+                gridColumn = element.number - 89 + 3 + 1; // Starts at column 3, +1 for period labels
+            }
+            
+            // Special cases for Hydrogen and Helium
+            if (element.number === 1) {
+                gridColumn = 1 + 1; // Column 1, +1 for period labels
+                gridRow = 1 + 1; // Row 1, +1 for group labels
+            } else if (element.number === 2) {
+                gridColumn = 18 + 1; // Column 18, +1 for period labels
+                gridRow = 1 + 1; // Row 1, +1 for group labels
+            }
+            
+            elementDiv.style.gridColumn = gridColumn;
+            elementDiv.style.gridRow = gridRow;
+            
+            elementDiv.addEventListener('click', () => showElementModal(element));
+            periodicTable.appendChild(elementDiv);
+        }
+        
+        // Modal functionality
+        const elementModal = document.getElementById('elementModal');
+        const closeModal = document.getElementById('closeModal');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettings = document.getElementById('closeSettings');
+        const modalTitle = document.getElementById('modalTitle');
+        const modelContainer = document.getElementById('modelContainer');
+        const elementInfo = document.getElementById('elementInfo');
+        
+        // 3D model variables
+        let scene, camera, renderer, sceneRoot, particles = [];
+        let protonToggle, neutronToggle, electronToggle, electronMoveToggle, electronOrbitToggle;
+        let animationFrameId;
+        let currentElement = null;
+        const interactionState = {
+            isPointerDown: false,
+            pointers: new Map(),
+            lastX: 0,
+            lastY: 0,
+            pinchDistance: null,
+            rotationX: -0.35,
+            rotationY: 0.45,
+            targetRotationX: -0.35,
+            targetRotationY: 0.45,
+            zoom: 30,
+            targetZoom: 30
+        };
+
+        function destroy3DModel() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            if (scene) {
+                scene.traverse((object) => {
+                    if (object.geometry) {
+                        object.geometry.dispose();
+                    }
+
+                    if (object.material) {
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach((material) => material.dispose());
+                        } else {
+                            object.material.dispose();
+                        }
+                    }
+                });
+            }
+
+            if (renderer) {
+                if (renderer.domElement.parentNode === modelContainer) {
+                    modelContainer.removeChild(renderer.domElement);
+                }
+                renderer.dispose();
+            }
+
+            particles = [];
+            scene = null;
+            camera = null;
+            renderer = null;
+            sceneRoot = null;
+        }
+
+        function rerenderCurrentModel() {
+            if (elementModal.classList.contains('active') && currentElement && typeof currentElement.number === 'number') {
+                init3DModel(currentElement.number);
+            }
+        }
+
+        function formatCategory(category) {
+            const categoryNames = {
+                'alkali-metal': 'Kim loại',
+                'alkaline-earth': 'Kim loại',
+                'transition-metal': 'Kim loại',
+                'post-transition': 'Kim loại',
+                'metalloid': 'Á kim',
+                'nonmetal': 'Phi kim',
+                'halogen': 'Halogen',
+                'noble-gas': 'Khí hiếm',
+                'lanthanide': 'Lantan',
+                'lanthanide_': 'Dãy Lantan',
+                'actinide': 'Actini',
+                'actinide_': 'Dãy Actini',
+                'unknown': 'Chưa xác định'
+            };
+
+            return categoryNames[category] || category;
+        }
+
+        function formatGroup(group) {
+            const groupNames = {
+                1: 'IA',
+                2: 'IIA',
+                3: 'IIIB',
+                4: 'IVB',
+                5: 'VB',
+                6: 'VIB',
+                7: 'VIIB',
+                8: 'VIIIB',
+                9: 'VIIIB',
+                10: 'VIIIB',
+                11: 'IB',
+                12: 'IIB',
+                13: 'IIIA',
+                14: 'IVA',
+                15: 'VA',
+                16: 'VIA',
+                17: 'VIIA',
+                18: 'VIIIA',
+                null: 'IIIB'
+            };
+
+            return groupNames[group] || "Không xác định";
+        }
+
+        function updateInfoPanel(element) {
+            elementInfo.innerHTML = `
+                <div class="info-line"><span class="info-label">Số hiệu nguyên tử</span><span class="info-value">${element.number}</span></div>
+                <div class="info-line"><span class="info-label">Khối lượng nguyên tử</span><span class="info-value">${element.mass}</span></div>
+                <div class="info-line"><span class="info-label">Loại</span><span class="info-value">${formatCategory(element.category)}</span></div>
+                <div class="info-line"><span class="info-label">Nhóm</span><span class="info-value nhom">${formatGroup(element.group)}</span></div>
+                <div class="info-line"><span class="info-label">Chu kì</span><span class="info-value">${element.period}</span></div>
+            `;
+        }
+
+        function clampZoom(value) {
+            return Math.min(70, Math.max(16, value));
+        }
+
+        function getPointerDistance() {
+            const points = Array.from(interactionState.pointers.values());
+            if (points.length < 2) {
+                return null;
+            }
+
+            const dx = points[0].x - points[1].x;
+            const dy = points[0].y - points[1].y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function attachModelInteractions() {
+            if (modelContainer.dataset.interactionsBound === 'true') {
+                return;
+            }
+
+            modelContainer.dataset.interactionsBound = 'true';
+
+            modelContainer.addEventListener('pointerdown', (event) => {
+                modelContainer.setPointerCapture(event.pointerId);
+                interactionState.isPointerDown = true;
+                interactionState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+                interactionState.lastX = event.clientX;
+                interactionState.lastY = event.clientY;
+                interactionState.pinchDistance = getPointerDistance();
+            });
+
+            modelContainer.addEventListener('pointermove', (event) => {
+                if (!interactionState.pointers.has(event.pointerId)) {
+                    return;
+                }
+
+                interactionState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+                if (interactionState.pointers.size >= 2) {
+                    const nextDistance = getPointerDistance();
+                    if (interactionState.pinchDistance !== null && nextDistance !== null) {
+                        interactionState.targetZoom = clampZoom(interactionState.targetZoom - (nextDistance - interactionState.pinchDistance) * 0.03);
+                    }
+                    interactionState.pinchDistance = nextDistance;
+                    return;
+                }
+
+                if (!interactionState.isPointerDown) {
+                    return;
+                }
+
+                const deltaX = event.clientX - interactionState.lastX;
+                const deltaY = event.clientY - interactionState.lastY;
+                interactionState.targetRotationY += deltaX * 0.01;
+                interactionState.targetRotationX += deltaY * 0.01;
+                interactionState.targetRotationX = Math.max(-1.3, Math.min(1.3, interactionState.targetRotationX));
+                interactionState.lastX = event.clientX;
+                interactionState.lastY = event.clientY;
+            });
+
+            const endPointer = (event) => {
+                interactionState.pointers.delete(event.pointerId);
+                interactionState.isPointerDown = interactionState.pointers.size > 0;
+                interactionState.pinchDistance = getPointerDistance();
+            };
+
+            modelContainer.addEventListener('pointerup', endPointer);
+            modelContainer.addEventListener('pointercancel', endPointer);
+            modelContainer.addEventListener('pointerleave', endPointer);
+
+            modelContainer.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                interactionState.targetZoom = clampZoom(interactionState.targetZoom + event.deltaY * 0.02);
+            }, { passive: false });
+        }
+
+        // Handle window resize event
+        function onWindowResize() {
+            if (camera && renderer && modelContainer) {
+                camera.aspect = modelContainer.clientWidth / modelContainer.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(modelContainer.clientWidth, modelContainer.clientHeight);
+                renderer.setPixelRatio(window.devicePixelRatio || 1);
+            }
+        }
+        window.addEventListener('resize', onWindowResize);
+
+        function showElementModal(element) {
+            currentElement = element;
+            modalTitle.textContent = `${element.name} (${element.symbol})`;
+            updateInfoPanel(element);
+            
+            elementModal.classList.add('active');
+
+            if (typeof element.number === 'number') {
+                init3DModel(element.number);
+            } else {
+                destroy3DModel();
+            }
+        }
+        
+        closeModal.addEventListener('click', () => {
+            elementModal.classList.remove('active');
+            destroy3DModel();
+        });
+        
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('active');
+        });
+        
+        closeSettings.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
+        });
+        
+        // Initialize 3D model
+        function init3DModel(atomicNumber) {
+            destroy3DModel();
+            attachModelInteractions();
+            
+            // Get settings toggles
+            protonToggle = document.getElementById('protonToggle');
+            neutronToggle = document.getElementById('neutronToggle');
+            electronToggle = document.getElementById('electronToggle');
+            electronMoveToggle = document.getElementById('electronMoveToggle');
+            electronOrbitToggle = document.getElementById('electronOrbitToggle');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            sceneRoot = new THREE.Group();
+            scene.add(sceneRoot);
+            
+            camera = new THREE.PerspectiveCamera(75, modelContainer.clientWidth / modelContainer.clientHeight, 0.1, 1000);
+            interactionState.zoom = 30;
+            interactionState.targetZoom = 30;
+            interactionState.rotationX = -0.35;
+            interactionState.rotationY = 0.45;
+            interactionState.targetRotationX = -0.35;
+            interactionState.targetRotationY = 0.45;
+            camera.position.set(0, 0, interactionState.zoom);
+            camera.lookAt(0, 0, 0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio || 1);
+            renderer.setSize(modelContainer.clientWidth, modelContainer.clientHeight);
+            modelContainer.appendChild(renderer.domElement);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(12, 10, 16);
+            scene.add(directionalLight);
+
+            const fillLight = new THREE.DirectionalLight(0x9ec5ff, 0.5);
+            fillLight.position.set(-10, -6, -10);
+            scene.add(fillLight);
+            
+            // Create nucleus (protons and neutrons)
+            const elementData = elements.find(e => e.number === atomicNumber);
+            const protonsCount = atomicNumber;
+            const neutronsCount = elementData ? Math.round(elementData.mass || atomicNumber * 2) - protonsCount : 0;
+            
+            // Tính toán bán kính hạt nhân động dựa trên tổng số hạt (A)
+            // Công thức: R = r0 * A^(1/3). Sử dụng hệ số 0.55 để các hạt (bán kính 0.8) lồng vào nhau.
+            const totalNucleons = protonsCount + neutronsCount;
+            const dynamicNucleusRadius = Math.max(0.1, 0.55 * Math.pow(totalNucleons, 1/3));
+
+            const protonRadius = 0.8;  // To hơn để tạo hiệu ứng dính
+            const neutronRadius = 0.8;
+            
+            // Tạo danh sách tổng hợp để trộn lẫn Proton và Neutron
+            let nucleons = [];
+            if (protonToggle.checked) {
+                for (let i = 0; i < protonsCount; i++) nucleons.push('proton');
+            }
+            if (neutronToggle.checked) {
+                for (let i = 0; i < neutronsCount; i++) nucleons.push('neutron');
+            }
+
+            // Xáo trộn vị trí để các hạt xanh đỏ đan xen nhau
+            nucleons.sort(() => Math.random() - 0.5);
+
+            nucleons.forEach(type => {
+                const geometry = new THREE.SphereGeometry(type === 'proton' ? protonRadius : neutronRadius, 12, 12);
+                const material = new THREE.MeshPhongMaterial({ color: type === 'proton' ? 0xff0000 : 0x0000ff });
+                const nucleon = new THREE.Mesh(geometry, material);
+                
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                // Phân bổ trong bán kính động đã tính toán
+                const r = Math.pow(Math.random(), 0.5) * dynamicNucleusRadius;
+                
+                nucleon.position.x = r * Math.sin(phi) * Math.cos(theta);
+                nucleon.position.y = r * Math.sin(phi) * Math.sin(theta);
+                nucleon.position.z = r * Math.cos(phi);
+                
+                sceneRoot.add(nucleon);
+                particles.push({ object: nucleon, type: type });
+            });
+            
+            // Create electrons if enabled
+            if (electronToggle.checked) {
+                const electronRadius = 0.35;
+                const electronShells = getElectronShells(atomicNumber);
+                
+                for (let shell = 0; shell < electronShells.length; shell++) {
+                    const electronsInShell = electronShells[shell];
+                    const shellRadius = 8 + shell * 2;
+                    
+                    // Create orbit if enabled
+                    if (electronOrbitToggle.checked) {
+                        const orbitGeometry = new THREE.RingGeometry(shellRadius - 0.05, shellRadius + 0.05, 64);
+                        const orbitMaterial = new THREE.MeshBasicMaterial({ color: 0x64748b, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
+                        const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+                        orbit.rotation.x = Math.PI / 2;
+                        sceneRoot.add(orbit);
+                    }
+
+                    for (let i = 0; i < electronsInShell; i++) {
+                        const electronGeometry = new THREE.SphereGeometry(electronRadius, 16, 16);
+                        const electronMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+                        const electron = new THREE.Mesh(electronGeometry, electronMaterial);
+                        
+                        // Position electron in orbit
+                        const angle = (i / electronsInShell) * Math.PI * 2;
+                        electron.position.x = shellRadius * Math.cos(angle);
+                        electron.position.z = shellRadius * Math.sin(angle);
+                        electron.position.y = 0;
+                        
+                        // Store electron properties for animation
+                        particles.push({ 
+                            object: electron, 
+                            type: 'electron',
+                            shell: shell,
+                            angle: angle,
+                            speed: 0.02 / (shell + 1) + Math.random() * 0.005,
+                            radius: shellRadius
+                        });
+                        
+                        sceneRoot.add(electron);
+                    }
+                }
+            }
+            
+            // Animation loop
+            function animate() {
+                animationFrameId = requestAnimationFrame(animate);
+                
+                // Rotate electrons if movement is enabled
+                if (electronMoveToggle.checked) {
+                    particles.forEach(particle => {
+                        if (particle.type === 'electron') {
+                            particle.angle += particle.speed;
+                            particle.object.position.x = particle.radius * Math.cos(particle.angle);
+                            particle.object.position.z = particle.radius * Math.sin(particle.angle);
+                        }
+                    });
+                }
+
+                if (sceneRoot) {
+                    interactionState.rotationX += (interactionState.targetRotationX - interactionState.rotationX) * 0.12;
+                    interactionState.rotationY += (interactionState.targetRotationY - interactionState.rotationY) * 0.12;
+                    interactionState.zoom += (interactionState.targetZoom - interactionState.zoom) * 0.14;
+
+                    sceneRoot.rotation.x = interactionState.rotationX;
+                    sceneRoot.rotation.y = interactionState.rotationY;
+                    camera.position.z = interactionState.zoom;
+                    camera.lookAt(0, 0, 0);
+                }
+                
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+        }
+        
+        // Helper function to calculate electron shells
+        function getElectronShells(atomicNumber) {
+            const shells = [];
+            let remainingElectrons = atomicNumber;
+            
+            // Electron shell capacities: 2, 8, 18, 32, ...
+            // Updated shell capacities for more accuracy with heavier elements
+            const shellCapacities = [2, 8, 18, 32, 50, 72, 98]; // Added capacities for higher shells
+            
+            for (let i = 0; i < shellCapacities.length && remainingElectrons > 0; i++) {
+                const electronsInShell = Math.min(shellCapacities[i], remainingElectrons);
+                shells.push(electronsInShell);
+                remainingElectrons -= electronsInShell;
+            }
+            
+            // Handle cases where there are too many electrons for known shells (for superheavy elements)
+            if (remainingElectrons > 0) {
+                shells.push(remainingElectrons);
+            }
+
+            return shells;
+        }
+        
+        // Settings toggles event listeners
+        document.getElementById('protonToggle').addEventListener('change', rerenderCurrentModel);
+        
+        document.getElementById('neutronToggle').addEventListener('change', rerenderCurrentModel);
+        
+        document.getElementById('electronToggle').addEventListener('change', rerenderCurrentModel);
+        
+        document.getElementById('electronMoveToggle').addEventListener('change', () => {
+            // No need to reinitialize, just toggle movement (handled in animate function)
+        });
+
+        document.getElementById('electronOrbitToggle').addEventListener('change', rerenderCurrentModel);
+    </script>
+</body>
+</html>
